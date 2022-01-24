@@ -32,7 +32,12 @@ func listFiles(path string) func(string) []string {
 
 var completer = readline.NewPrefixCompleter(
 	readline.PcItem("gosh",
-		readline.PcItem("list"),
+		readline.PcItem("list", readline.PcItem("-f"), readline.PcItem("-p")),
+		readline.PcItem("build",
+			readline.PcItem("all"),
+			readline.PcItem("file"),
+		),
+		readline.PcItem("load"),
 		readline.PcItem("exec"),
 		readline.PcItem("build"),
 	),
@@ -133,13 +138,40 @@ func main() {
 				println("invalid mode:", line[5:])
 			}
 		case strings.HasPrefix(line, "gosh "):
+			msg := `unknown`
+			title := `unknown`
 			switch line[5:] {
-			case "list":
-				fil := shell.listPlugins()
-				fmt.Fprintf(os.Stderr, "%s\n", fil)
+			case "build all":
+				build_cmds := shell.buildFileCommands()
+				title = fmt.Sprintf(`%d GOSH %s`, len(build_cmds), `Commands`)
+				dur, err := shell.buildFiles()
+				if err != nil {
+					panic(err)
+				}
+				msg = fmt.Sprintf("Built in %s", dur)
+			case "build commands":
+				build_cmds := shell.buildFileCommands()
+				title = fmt.Sprintf(`%d GOSH %s`, len(build_cmds), `Commands`)
+				msg = fmt.Sprintf("%s", strings.Join(build_cmds, "\n"))
+			case "load":
+				shell.loadCommands()
+				fxns := gosh_fxns()
+				title = fmt.Sprintf("%d Functions- %s\n", len(fxns), fxns)
+				msg = fmt.Sprintf("%d Functions- %s\n", len(fxns), fxns)
+			case "list -f":
+				gosh_files := shell.listFiles()
+				title = fmt.Sprintf(`%d GOSH %s`, len(gosh_files), `Files`)
+				msg = fmt.Sprintf("%s", strings.Join(gosh_files, `, `))
+			case "list -p":
+				plugins := shell.listPlugins()
+				title = fmt.Sprintf(`%d GOSH %s`, len(plugins), `Plugins`)
+				msg = fmt.Sprintf("%s", strings.Join(plugins, `, `))
 			default:
-				println("invalid mode:", line[5:])
+				msg = fmt.Sprintf("invalid mode:", line[5:])
+				panic(msg)
 			}
+			print_ok_title(os.Stderr, title)
+			print_ok(os.Stderr, msg)
 		case line == "mode":
 			if l.IsVimMode() {
 				println("current mode: vim")

@@ -7,19 +7,24 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"plugin"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/vladimirvivien/gosh/api"
 )
 
 var (
 	reCmd = regexp.MustCompile(`\S+`)
+	shell = New()
 )
 
 type Goshell struct {
@@ -27,6 +32,10 @@ type Goshell struct {
 	pluginsDir string
 	commands   map[string]api.Command
 	closed     chan struct{}
+}
+
+func reloadShell() {
+	shell = New()
 }
 
 // New returns a new shell
@@ -44,6 +53,63 @@ func (gosh *Goshell) Init(ctx context.Context) error {
 	return gosh.loadCommands()
 }
 
+func (gosh *Goshell) buildFiles() (time.Duration, error) {
+	var wg sync.WaitGroup
+	st := time.Now()
+	for _, cmd := range shell.buildFileCommands() {
+		wg.Add(1)
+		func() {
+			out, err := exec.Command(`sh`, `-c`, cmd).Output()
+			if err != nil {
+				if len(out) > 0 {
+					fmt.Fprintf(os.Stderr, `%s`, out)
+				}
+				log.Fatal(err)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	reloadShell()
+	return time.Since(st), nil
+}
+
+func (gosh *Goshell) buildFileCommands() (cmds []string) {
+	for _, gf := range shell.listFiles() {
+		cmd := fmt.Sprintf(`go build -buildmode=plugin -o "%s/%s_command.so" "%s/%s"`,
+			gosh.pluginsDir,
+			strings.Replace(strings.Split(gf, `.`)[0], `cmd`, ``, -1),
+			gosh.pluginsDir,
+			gf,
+		)
+		cmds = append(cmds, cmd)
+	}
+	return unique(cmds)
+}
+
+func unique(intSlice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range intSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}
+
+func (gosh *Goshell) listFiles() []string {
+	gosh_files, err := listGoshFiles(gosh.pluginsDir, `.*.go`)
+	if err != nil {
+		panic(err)
+	}
+	ps := []string{}
+	for _, gosh_file := range gosh_files {
+		ps = append(ps, gosh_file.Name())
+	}
+	return ps
+}
 func (gosh *Goshell) listPlugins() []string {
 	plugins, err := listGoshFiles(gosh.pluginsDir, `.*_command.so`)
 	if err != nil {
@@ -56,7 +122,9 @@ func (gosh *Goshell) listPlugins() []string {
 			fmt.Printf("failed to open plugin %s: %v\n", cmdPlugin.Name(), err)
 			continue
 		}
-		fmt.Println(plug)
+		if false {
+			fmt.Println(plug)
+		}
 		ps = append(ps, cmdPlugin.Name())
 
 	}
@@ -97,7 +165,9 @@ func (gosh *Goshell) loadCommands() error {
 		}
 		for name, cmd := range commands.Registry() {
 			gosh.commands[name] = cmd
-			fmt.Fprintf(os.Stderr, "Cmd: %s\n", name)
+			if false {
+				fmt.Fprintf(os.Stderr, "Cmd: %s\n", name)
+			}
 		}
 		gosh.ctx = context.WithValue(gosh.ctx, "gosh.commands", gosh.commands)
 	}
@@ -186,7 +256,13 @@ func listGoshFiles(dir, pattern string) ([]os.FileInfo, error) {
 	return filteredFiles, nil
 }
 
-var shell = New()
+func gosh_fxns() []string {
+	keys := make([]string, 0, len(shell.commands))
+	for k, _ := range shell.commands {
+		keys = append(keys, k)
+	}
+	return keys
+}
 
 func gosh_main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -206,9 +282,8 @@ func gosh_main() {
 	cmdCount := len(shell.commands)
 	if cmdCount > 0 {
 		if _, ok := shell.commands["help"]; ok {
-			fmt.Printf("\nLoaded %d command(s)...", cmdCount)
-			fmt.Println("\nType help for available commands")
-			fmt.Print("\n")
+			print_ok(os.Stderr, fmt.Sprintf("\nLoaded %d command(s)...", cmdCount))
+			print_ok(os.Stderr, "Type help for available commands")
 		}
 	} else {
 		fmt.Print("\n\nNo commands found")
