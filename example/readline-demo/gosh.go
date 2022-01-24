@@ -264,19 +264,23 @@ func gosh_fxns() []string {
 	return keys
 }
 
-func gosh_main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+var _ctx, _cancel = context.WithCancel(context.Background())
 
-	ctx = context.WithValue(ctx, "gosh.prompt", api.DefaultPrompt)
-	ctx = context.WithValue(ctx, "gosh.stdout", os.Stdout)
-	ctx = context.WithValue(ctx, "gosh.stderr", os.Stderr)
-	ctx = context.WithValue(ctx, "gosh.stdin", os.Stdin)
+func init() {
+	defer _cancel()
+	_ctx = context.WithValue(_ctx, "gosh.prompt", api.DefaultPrompt)
+	_ctx = context.WithValue(_ctx, "gosh.stdout", os.Stdout)
+	_ctx = context.WithValue(_ctx, "gosh.stderr", os.Stderr)
+	_ctx = context.WithValue(_ctx, "gosh.stdin", os.Stdin)
 
-	if err := shell.Init(ctx); err != nil {
+	if err := shell.Init(_ctx); err != nil {
 		fmt.Println("\n\nfailed to initialize:\n", err)
 		os.Exit(1)
 	}
+
+}
+
+func gosh_main() {
 
 	// prompt for help
 	cmdCount := len(shell.commands)
@@ -288,14 +292,13 @@ func gosh_main() {
 	} else {
 		fmt.Print("\n\nNo commands found")
 	}
-	if false {
+	if true {
 		go shell.Open(bufio.NewReader(os.Stdin))
-
 		sigs := make(chan os.Signal)
 		signal.Notify(sigs, syscall.SIGINT)
 		select {
 		case <-sigs:
-			cancel()
+			_cancel()
 			<-shell.Closed()
 		case <-shell.Closed():
 		}

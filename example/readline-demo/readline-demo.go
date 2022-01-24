@@ -35,11 +35,10 @@ var completer = readline.NewPrefixCompleter(
 		readline.PcItem("list", readline.PcItem("-f"), readline.PcItem("-p")),
 		readline.PcItem("build",
 			readline.PcItem("all"),
-			readline.PcItem("file"),
+			readline.PcItem("commands"),
 		),
 		readline.PcItem("load"),
 		readline.PcItem("exec"),
-		readline.PcItem("build"),
 	),
 	readline.PcItem("mode",
 		readline.PcItem("vi"),
@@ -89,7 +88,6 @@ func gosh_mode(line string) {
 }
 
 func main() {
-	gosh_main()
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          get_prompt(),
 		HistoryFile:     "/tmp/readline.tmp",
@@ -153,6 +151,8 @@ func main() {
 				build_cmds := shell.buildFileCommands()
 				title = fmt.Sprintf(`%d GOSH %s`, len(build_cmds), `Commands`)
 				msg = fmt.Sprintf("%s", strings.Join(build_cmds, "\n"))
+			case "exec":
+				gosh_main()
 			case "load":
 				shell.loadCommands()
 				fxns := gosh_fxns()

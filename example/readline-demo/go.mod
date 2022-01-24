@@ -5,7 +5,6 @@ go 1.17
 require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/fatih/color v1.13.0
-	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/vladimirvivien/gosh v0.0.0-20200114225454-b53b6ad15c1b
 )
 
