@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,11 @@ func listFiles(path string) func(string) []string {
 }
 
 var completer = readline.NewPrefixCompleter(
+	readline.PcItem("gosh",
+		readline.PcItem("list"),
+		readline.PcItem("exec"),
+		readline.PcItem("build"),
+	),
 	readline.PcItem("mode",
 		readline.PcItem("vi"),
 		readline.PcItem("emacs"),
@@ -70,9 +76,17 @@ func filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
+func get_prompt() string {
+	return "\033[31m»\033[0m "
+}
+func gosh_mode(line string) {
+	fmt.Fprintf(os.Stderr, "GOSH MODE %s>\n", line)
+}
+
 func main() {
+	gosh_main()
 	l, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[31m»\033[0m ",
+		Prompt:          get_prompt(),
 		HistoryFile:     "/tmp/readline.tmp",
 		AutoComplete:    completer,
 		InterruptPrompt: "^C",
@@ -94,6 +108,7 @@ func main() {
 	})
 
 	log.SetOutput(l.Stderr())
+	log.Println("log initialized...")
 	for {
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
@@ -114,6 +129,14 @@ func main() {
 				l.SetVimMode(true)
 			case "emacs":
 				l.SetVimMode(false)
+			default:
+				println("invalid mode:", line[5:])
+			}
+		case strings.HasPrefix(line, "gosh "):
+			switch line[5:] {
+			case "list":
+				fil := shell.listPlugins()
+				fmt.Fprintf(os.Stderr, "%s\n", fil)
 			default:
 				println("invalid mode:", line[5:])
 			}
