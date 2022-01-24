@@ -44,23 +44,23 @@ func (gosh *Goshell) Init(ctx context.Context) error {
 	return gosh.loadCommands()
 }
 
-func (gosh *Goshell) listPlugins() []string{
-  plugins, err := listGoshFiles(gosh.pluginsDir, `.*_command.so`)
-  if err != nil {
-    panic(err)
-  }
-  ps := []string{}
+func (gosh *Goshell) listPlugins() []string {
+	plugins, err := listGoshFiles(gosh.pluginsDir, `.*_command.so`)
+	if err != nil {
+		panic(err)
+	}
+	ps := []string{}
 	for _, cmdPlugin := range plugins {
-  	plug, err := plugin.Open(path.Join(gosh.pluginsDir, cmdPlugin.Name()))
+		plug, err := plugin.Open(path.Join(gosh.pluginsDir, cmdPlugin.Name()))
 		if err != nil {
 			fmt.Printf("failed to open plugin %s: %v\n", cmdPlugin.Name(), err)
 			continue
 		}
-    fmt.Println(plug)
-    ps = append(ps, cmdPlugin.Name())
-    
-  }
-  return ps
+		fmt.Println(plug)
+		ps = append(ps, cmdPlugin.Name())
+
+	}
+	return ps
 }
 
 func (gosh *Goshell) loadCommands() error {
@@ -186,7 +186,7 @@ func listGoshFiles(dir, pattern string) ([]os.FileInfo, error) {
 	return filteredFiles, nil
 }
 
-	var shell = New()
+var shell = New()
 
 func gosh_main() {
 	ctx, cancel := context.WithCancel(context.Background())
